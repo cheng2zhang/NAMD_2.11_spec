@@ -47,6 +47,8 @@ protected:
     void submitMinimizeReductions(int, BigReal fmax2);
     void submitCollections(int step, int zeroVel = 0);
 
+    void submitSpecPositions(int step, ResizeArray<int> &specIDs);
+
     void submitMomentum(int step);
     void correctMomentum(int step, BigReal drifttime);
 

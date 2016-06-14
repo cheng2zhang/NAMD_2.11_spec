@@ -388,6 +388,44 @@ extern "C" {
   typedef void (*namd_sighandler_t)(int);
 }
 
+// initialize special atoms
+void Controller::specInit(int scriptTask, int step)
+{
+  // set the number of special positions
+  Molecule *mol = Node::Object()->molecule;
+  ResizeArray<int> specIDs;
+
+  // here our sepcial atoms are the CA atoms
+  // scan all atoms and search for atom names of "CA"
+  #ifdef MEM_OPT_VERSION
+  AtomNameIdx *atomNames = mol->getAtomNames();
+  for ( int i = 0; i < mol->numAtoms; i++ ) {
+    Index idx = atomNames[i].atomnameIdx;
+    if ( strcasecmp(atomNamePool[idx], "CA") == 0 ) {
+      specIDs.add(i);
+    }
+  }
+  #else
+  AtomNameInfo *atomNames = mol->getAtomNames();
+  for ( int i = 0; i < mol->numAtoms; i++ ) {
+    if ( strcasecmp(atomNames[i].atomname, "CA") == 0 ) {
+      specIDs.add(i);
+    }
+  }
+  #endif
+  
+  // print out the special atoms
+  for ( int i = 0; i < specIDs.size(); i++ )
+    CkPrintf("CA %d: %d\n", i+1, specIDs[i]);
+
+  // publish the IDs of special atoms
+  collection->numSpec = specIDs.size();
+  broadcast->specID.publish(0, collection->numSpec);
+  for ( int k = 0; k < collection->numSpec; k++ ) {
+    broadcast->specID.publish(k + 1, specIDs[k]);
+  }
+}
+
 void Controller::integrate(int scriptTask) {
     char traceNote[24];
   
@@ -405,6 +443,8 @@ void Controller::integrate(int scriptTask) {
     else
       slowFreq = simParams->nonbondedFrequency;
     if ( step >= numberOfSteps ) slowFreq = nbondFreq = 1;
+
+    specInit(scriptTask, step);
 
   if ( scriptTask == SCRIPT_RUN ) {
 
@@ -444,6 +484,11 @@ void Controller::integrate(int scriptTask) {
 	langevinPiston1(step);
         rescaleaccelMD(step);
 	enqueueCollections(step);  // after lattice scaling!
+
+        // request positions of the special atoms, the results
+        // may not be immediately available after the call
+        collection->enqueueSpecPositions(step, state->lattice);
+
 	receivePressure(step);
         if ( zeroMomentum && dofull && ! (step % slowFreq) )
 						correctMomentum(step);

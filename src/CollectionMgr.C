@@ -32,6 +32,38 @@ CollectionMgr::~CollectionMgr(void)
 {
 }
 
+void CollectionMgr::submitSpecPositions(int seq, FullAtomList &a,
+				Lattice l, int prec)
+{  
+  int numAtoms = a.size();
+  AtomIDList aid(numAtoms);
+  PositionList d(numAtoms);
+  for ( int i=0; i<numAtoms; ++i ) {
+    aid[i] = a[i].id;
+    d[i] = l.reverse_transform(a[i].position,a[i].transform);
+    //CkPrintf("CollectionMgr::submitSpecPositions %d: %d, atom %d, %g %g %g\n", seq, i, aid[i], d[i].x, d[i].y, d[i].z);
+  }
+  CollectVectorInstance *c;
+  if ( ( c = specPositions.submitData(seq,aid,d,prec) ) )
+  {
+    int aid_size = c->aid.size();
+    int data_size = c->data.size();
+    int fdata_size = c->fdata.size();
+    CollectVectorMsg *msg
+      = new (aid_size, data_size, fdata_size,0) CollectVectorMsg;
+    msg->seq = c->seq;
+    msg->aid_size = aid_size;
+    msg->data_size = data_size;
+    msg->fdata_size = fdata_size;
+    memcpy(msg->aid,c->aid.begin(),aid_size*sizeof(AtomID));
+    memcpy(msg->data,c->data.begin(),data_size*sizeof(Vector));
+    memcpy(msg->fdata,c->fdata.begin(),fdata_size*sizeof(FloatVector));
+    CProxy_CollectionMaster cm(master);
+    cm.receiveSpecPositions(msg);
+    c->free();
+  }
+}
+
 #ifdef MEM_OPT_VERSION
 //1. record the dest output rank of each atom
 //2. distribute the atoms to the corresponding output procs

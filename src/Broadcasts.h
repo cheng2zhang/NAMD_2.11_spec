@@ -49,6 +49,7 @@ enum {
   accelMDRescaleFactorTag,
   adaptTempScaleTag, //Tag for adaptive tempering velocity scaling factor
   adaptTemperatureTag, //Tag for adaptive tempering temperature updates to Sequencer
+  specIDTag, // Tag for indices of special atoms
 #ifdef MEASURE_NAMD_WITH_PAPI
   papiMeasureTag,
 #endif
@@ -71,6 +72,7 @@ struct ControllerBroadcasts
   SimpleBroadcastObject<Vector> accelMDRescaleFactor;
   SimpleBroadcastObject<BigReal> adaptTempScale; 
   SimpleBroadcastObject<BigReal> adaptTemperature; 
+  SimpleBroadcastObject<int> specID;
 #ifdef MEASURE_NAMD_WITH_PAPI
   SimpleBroadcastObject<int> papiMeasureBarrier;
 #endif
@@ -87,6 +89,7 @@ struct ControllerBroadcasts
     accelMDRescaleFactor(accelMDRescaleFactorTag, ldObjPtr),
     adaptTempScale(adaptTempScaleTag, ldObjPtr), 
     adaptTemperature(adaptTemperatureTag, ldObjPtr), 
+    specID(specIDTag, ldObjPtr),
     scriptBarrier(scriptBarrierTag, ldObjPtr),
 #ifdef MEASURE_NAMD_WITH_PAPI
 	papiMeasureBarrier(papiMeasureTag, ldObjPtr),

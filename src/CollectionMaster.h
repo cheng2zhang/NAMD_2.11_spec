@@ -297,6 +297,13 @@ public:
 
   };
 #endif
+
+  int numSpec; // size of `specPositions', to be set in the Controller
+  CollectVectorSequence specPositions; // to hold positions of special atoms
+  void receiveSpecPositions(CollectVectorMsg *msg);
+  void enqueueSpecPositions(int seq, Lattice &lattice);
+  void disposeSpecPositions(CollectVectorInstance *c);
+
 private:
 
   CollectVectorSequence positions;

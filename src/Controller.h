@@ -255,7 +255,10 @@ protected:
    BigReal adaptTempDtMin;
    BigReal adaptTempDtMax;
    ofstream_namd adaptTempRestartFile;
-  
+ 
+    // special atoms
+    void specInit(int scriptTask, int step);
+
 private:
     CthThread thread;
     static void threadRun(Controller*);

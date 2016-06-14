@@ -138,6 +138,9 @@ public:
     ResizeArray<CollectVectorInstance*> data;
 
   };
+  CollectVectorSequence specPositions;
+  void submitSpecPositions(int seq, FullAtomList &a, Lattice l, int prec=2);
+
 private:
 
   CkChareID master;
