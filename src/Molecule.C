@@ -5297,6 +5297,38 @@ void Molecule::send_Molecule(MOStream *msg){
   }
 #endif
 
+  {
+    ResizeArray<int> specIDs;
+
+    // here our sepcial atoms are the CA atoms
+    // scan all atoms and search for atom names of "CA"
+    #ifdef MEM_OPT_VERSION
+    for ( int i = 0; i < numAtoms; i++ ) {
+      Index idx = atomNames[i].atomnameIdx;
+      if ( strcasecmp(atomNamePool[idx], "CA") == 0 ) {
+        specIDs.add(i);
+      }
+    }
+    #else
+    for ( int i = 0; i < numAtoms; i++ ) {
+      if ( strcasecmp(atomNames[i].atomname, "CA") == 0 ) {
+        specIDs.add(i);
+      }
+    }
+    #endif
+    
+    spcnt = specIDs.size();
+    specids = new int[spcnt];
+    // print out the special atoms
+    for ( int i = 0; i < spcnt; i++ ) {
+      specids[i] = specIDs[i];
+      CkPrintf("Mol CA %d: %d\n", i+1, specIDs[i]);
+    }
+    
+    msg->put(spcnt);
+    msg->put(spcnt, specids);
+  }
+
   // Broadcast the message to the other nodes
   msg->end();
   delete msg;
@@ -5757,6 +5789,10 @@ void Molecule::receive_Molecule(MIStream *msg){
     //
   }
 #endif
+
+  msg->get(spcnt);
+  specids = new int[spcnt];
+  msg->get(spcnt, specids);
 
       //  Now free the message 
       delete msg;

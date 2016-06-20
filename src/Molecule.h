@@ -1266,6 +1266,10 @@ private:
 
 #endif
 
+public:
+// special-atom stuff
+int spcnt, *specids;
+
 // Go stuff
 public:
 
