@@ -497,6 +497,26 @@ public:
 					//  active
 	BigReal tCoupleTemp;		//  Temperature for temp coupling
 
+	Bool langRescaleOn;		//  Flag TRUE-> Langevin velocity-rescaling thermostat active
+	                   		//  Bussi, Donadio, and Parrinello, JCP 126, 014101 (2007)
+	BigReal langRescaleTemp;	//  Temperature for Langevin velocity-rescaling thermostat
+	BigReal langRescaleDt;	        //  Inverse viscosity in femtoseconds for Langevin velocity-rescaling thermostat
+	int langRescaleFreq;	        //  number of MD steps between two Langevin velocity-rescaling steps
+
+	Bool tNHCOn;			// Flag TRUE-> Nose-Hoover chain thermostat
+	            			// Martyna, Klein, and Tuckerman, JCP 97, 2635 (1992)
+	BigReal tNHCTemp;		// Temperature of the Nose-Hoover chain
+	int tNHCLen;			// Length of the Nose-Hoover chain
+	BigReal tNHCPeriod;		// Oscillation period in femtoseconds of the Nose-Hoover chain
+	char tNHCFile[128];		// Restart file for the NH-chain
+	int tNHCFileFreq;		// Frequency of writing the NH-chain restart file
+	Bool tNHCFileReadMass;		// Read mass from the restart file
+
+	Bool keHistOn;			// Flag TRUE-> Kinetic energy histogram
+	BigReal keHistBin;		// Bin size of the histogram of the kinetic energy
+	char keHistFile[128];		// Histogram file for the kinetic energy 
+	int keHistFileFreq;		// Frequency of writing the kinetic energy histogram file
+
 	int rescaleFreq;		//  Velocity rescale frequency
 	BigReal rescaleTemp;		//  Temperature to rescale to
 
@@ -527,6 +547,8 @@ public:
         BigReal adaptTempCgamma;               //  Cgamma variable for adaptive bin averaging Cgamma = 0 is normal Averaging. 1 > Cgamma >= 0
         Bool adaptTempLangevin;                //  Couple to Langevin Thermostat
         Bool adaptTempRescale;                 //  Couple to Vel. Rescaling
+        Bool adaptTempLangRescale;             //  Couple to Langevin-style velocity rescaling thermostat
+        Bool adaptTempTNHC;                    //  Couple to Nose-Hoover chain thermostat
         char adaptTempInFile[128];             //  Restart information for adaptTemp to read
         char adaptTempRestartFile[128];        //  File to write restart information
         int  adaptTempRestartFreq;             //  Frequency of writing restart output
@@ -921,6 +943,7 @@ public:
         int issetinparseopts(const char* name);
 
        	void readExtendedSystem(const char *filename, Lattice *latptr=0);
+        BigReal thermostatTemp(void);
 private:
         ParseOptions *parseopts;
 
