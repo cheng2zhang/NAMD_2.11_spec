@@ -4,6 +4,11 @@
 
 #include <iostream>
 #include <sstream>
+#if !defined(WIN32) || defined(__CYGWIN__)
+#include <unistd.h>
+#else
+#include <io.h>
+#endif
 
 class ofstream_namd : public std::ostringstream {
 
@@ -29,6 +34,14 @@ public:
 
   ~ofstream_namd() {
     if ( fd ) close();
+  }
+
+  void seekbegin() {
+#if !defined(WIN32) || defined(__CYGWIN__)
+    lseek(fd, 0, SEEK_SET);
+#else
+    _lseek(fd, 0, SEEK_SET);
+#endif
   }
 
   bool good() const { return true; }
