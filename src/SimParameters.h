@@ -517,13 +517,16 @@ public:
 	char keHistFile[128];		// Histogram file for the kinetic energy 
 	int keHistFileFreq;		// Frequency of writing the kinetic energy histogram file
 
+        char energyLogFile[128];        // Energy log file
+        int energyLogFreq;              // Frequency of writing the energy log file
+
 	int rescaleFreq;		//  Velocity rescale frequency
 	BigReal rescaleTemp;		//  Temperature to rescale to
 	Bool rescaleAdaptiveOn;		//  Adaptively reduce the velocity-rescaling factor
 	BigReal rescaleAdaptiveDedk;	//  Heuristic multiple of the reduction factor
 	char rescaleAdaptiveFile[128];	//  File to save the adaptive veloctiy-rescaling data
 	int rescaleAdaptiveFileFreq;	//  Frequency to save the adaptive veloctiy-rescaling restart file
- 
+
         Bool accelMDOn;                 //  Perform accelerated MD
         Bool accelMDdihe;               //  Apply boost to the dihedral potential
         Bool accelMDdual;               //  dual boost mode  
@@ -548,6 +551,9 @@ public:
         BigReal adaptTempAutoDt;               //  Auto jump size. Value determines upper bound, adaotTempDt determines lower bound 
         int adaptTempBins;                     //  Number of bins to store average energy values
         BigReal adaptTempWindowSize;           //  Window size as a fraction of the inverse temperature range
+        BigReal adaptTempWeightExp;            //  Exponent x as in the inverse-temperature density w(beta) ~ beta^(-x), 0: flat-beta, 1: flat-lnT, 2: flat-T distribution
+        Bool adaptTempMCMove;                  //  Use Monte Carlo to update the temperature
+        BigReal adaptTempMCSize;               //  Magnitude of Monte Carlo temperature moves a faction of the current temperture
         BigReal adaptTempDt;                   //  timestep for adaptTemp updates - only affects Temperature random walk
         BigReal adaptTempCgamma;               //  Cgamma variable for adaptive bin averaging Cgamma = 0 is normal Averaging. 1 > Cgamma >= 0
         Bool adaptTempLangevin;                //  Couple to Langevin Thermostat
@@ -555,9 +561,12 @@ public:
         Bool adaptTempLangRescale;             //  Couple to Langevin-style velocity rescaling thermostat
         Bool adaptTempTNHC;                    //  Couple to Nose-Hoover chain thermostat
         char adaptTempInFile[128];             //  Restart information for adaptTemp to read
+        Bool adaptTempFixedAve;                //  Fixing the average values from the input restart file
         char adaptTempRestartFile[128];        //  File to write restart information
         int  adaptTempRestartFreq;             //  Frequency of writing restart output
         Bool adaptTempRestartAppend;           //  Appending instead of overwriting the restart file
+        Bool adaptTempSepOn;                   //  Using a separate multiple-bin estimator for each bin
+        BigReal adaptTempSamplesMin;           //  Minimal number of samples in a bin to start temperature transitions
         Bool adaptTempRandom;                  //  Do we assign random temperatures when we step out of [Tmin,Tmax]?
         /* End Adaptive Temperature Sampling */
 
