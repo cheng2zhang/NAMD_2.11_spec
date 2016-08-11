@@ -1993,21 +1993,22 @@ void Controller::adaptTempInit(int step) {
     adaptTempMCTot = 0;
     adaptTempMCAcc = 0;
     adaptTempMCDAcc = 0;
+    adaptTempMCFail = 0;
     if (simParams->adaptTempInFile[0] != '\0') {
       iout << iINFO << "READING ADAPTIVE TEMPERING RESTART FILE\n" << endi;
       std::ifstream adaptTempRead(simParams->adaptTempInFile);
       if (adaptTempRead) {
-        adaptTempRead.exceptions( std::ifstream::failbit | std::ifstream::badbit );
+        adaptTempRead.exceptions( std::ios::failbit | std::ios::badbit );
         try {
           std::string buf(""); // now read by lines to make extension easier
           std::stringstream ss;
+          ss.exceptions( std::ios::failbit | std::ios::badbit );
           int readInt;
           BigReal readReal;
           std::getline(adaptTempRead, buf);
           ss.str(buf);
           // step
           ss >> readInt;
-          // Start with min and max temperatures
           ss >> adaptTempT;     // KELVIN
           ss >> adaptTempBetaMin;  // KELVIN
           ss >> adaptTempBetaMax;  // KELVIN
@@ -2019,7 +2020,7 @@ void Controller::adaptTempInit(int step) {
           ss >> adaptTempBins;     
           ss >> adaptTempCg;
           ss >> adaptTempDt;
-          ss.clear();
+          ss.clear(); // clear eof
           adaptTempPotEnergyAveNum  = new double[adaptTempBins];
           adaptTempPotEnergyAveDen  = new double[adaptTempBins];
           adaptTempPotEnergySamples = new long[adaptTempBins];
@@ -2039,6 +2040,7 @@ void Controller::adaptTempInit(int step) {
             ss >> adaptTempPotEnergyVarNum[j];
             ss >> adaptTempPotEnergyAveDen[j];
             // ss >> readReal; // InvW
+            ss.clear(); // clear eof
             //CkPrintf("%d %g %g %g %ld %g %g %g\nbuf %s", j, readReal, adaptTempPotEnergyAve[j],
             //    adaptTempPotEnergyVar[j], adaptTempPotEnergySamples[j],
             //    adaptTempPotEnergyAveNum[j], adaptTempPotEnergyVarNum[j], adaptTempPotEnergyAveDen[j], buf.c_str()); getchar();
@@ -2095,7 +2097,7 @@ void Controller::adaptTempInit(int step) {
               NAMD_die(info);
             }
           }
-        } catch ( std::ifstream::failure e ) {
+        } catch ( std::ios::failure e ) {
           NAMD_die("Failed to read the ADAPTIVE TEMPERING restart file.\n");
         }
         adaptTempRead.close();
@@ -2210,13 +2212,12 @@ void Controller::adaptTempWriteRestart(int step) {
         }
         iout << "ADAPTEMP: WRITING RESTART FILE AT STEP " << step << "\n" << endi;
         adaptTempRestartFile << step << " ";
-        // Start with min and max temperatures
-        adaptTempRestartFile << adaptTempT<< " ";     // KELVIN
+        adaptTempRestartFile << adaptTempT << " ";     // KELVIN
         adaptTempRestartFile << 1./adaptTempBetaMin << " ";  // KELVIN
         adaptTempRestartFile << 1./adaptTempBetaMax << " ";  // KELVIN
         adaptTempRestartFile << adaptTempBins << " ";     
         adaptTempRestartFile << adaptTempCg << " ";
-        adaptTempRestartFile << adaptTempDt ;
+        adaptTempRestartFile << adaptTempDt;
         adaptTempRestartFile << "\n" ;
         for(int j = 0; j < adaptTempBins; ++j) {
           BigReal bet = adaptTempBetaMin + (j + 0.5) * adaptTempDBeta;
@@ -2357,10 +2358,11 @@ BigReal Controller::adaptTempGetPEAve(int i, BigReal def)
 
 BigReal Controller::adaptTempMCMove(BigReal tp, BigReal ep)
 {
-    double lnbeta = log(1./tp), nlnbeta, beta, nbeta, delta, epave;
+    double lnbeta = log(1./tp), nlnbeta, r, beta, nbeta, delta, epave;
     int i, ni, j;
     adaptTempMCTot += 1;
-    nlnbeta = lnbeta + simParams->adaptTempMCSize * random->gaussian();
+    r = random->gaussian();
+    nlnbeta = lnbeta + simParams->adaptTempMCSize * r;
     nbeta = exp(nlnbeta);
     beta = 1.0 / tp;
     i = (int) ( (beta - adaptTempBetaMin) / adaptTempDBeta );
@@ -2416,6 +2418,12 @@ BigReal Controller::adaptTempMCMove(BigReal tp, BigReal ep)
     if ( acc && delta < 0 ) { // for d(acc. ratio)/d(ln beta)
       double del = (ep - epave) * nbeta / BOLTZMANN + (simParams->adaptTempWeightExp - 1);
       adaptTempMCDAcc += (nbeta > beta ? -del : del);
+    }
+    if ( acc ) {
+      double mbeta = exp(lnbeta + (simParams->adaptTempMCSize
+                                 + simParams->adaptTempMCSizeInc) * r);
+      if ( mbeta < adaptTempBetaMin || mbeta >= adaptTempBetaMax )
+        adaptTempMCFail += 1;
     }
     return acc ? 1.0/nbeta : tp;
 }
@@ -2523,24 +2531,24 @@ Bool Controller::adaptTempUpdate(int step, int minimize)
       if ( adaptTempPotEnergySamples[adaptTempBin] <= simParams->adaptTempSamplesMin ) {
         // avoid making temperature transitions without enough samples
         dT = adaptTempT;
-      } else if ( simParams->adaptTempMCMove ) {
+      } else if ( simParams->adaptTempMCMove ) { // Monte Carlo temperature update
         dT = adaptTempMCMove(adaptTempT, potentialEnergy);
-      } else {
-        if ( simParams->adaptTempFixedAve ) {
-          potEnergyAverage = adaptTempPotEnergyAve[adaptTempBin];
-        } else {
-          potEnergyAverage = adaptTempGetPEAve(adaptTempBin);
+      } else { // Langevin equation temperature update
+        BigReal tp = adaptTempT, ntp, PEAve = 0;
+        BigReal dt = adaptTempDt / simParams->adaptTempDtSteps;
+        for ( int k = 0; k < simParams->adaptTempDtSteps; k++ ) { // multiple sub-steps
+          int i = (int) ((1./tp - adaptTempBetaMin) / adaptTempDBeta);
+          PEAve = simParams->adaptTempFixedAve ? adaptTempPotEnergyAve[i] : adaptTempGetPEAve(i, PEAve);
+          ntp = tp + ( (potentialEnergy - PEAve) / BOLTZMANN + tp * simParams->adaptTempWeightExp ) * dt 
+                   + random->gaussian() * sqrt(2. * dt) * tp;
+          if ( ntp >= 1./adaptTempBetaMax && ntp < 1./adaptTempBetaMin ) tp = ntp;
         }
-
-        dT = ( (potentialEnergy - potEnergyAverage) / BOLTZMANN
-               + adaptTempT * simParams->adaptTempWeightExp ) * adaptTempDt;
-        dT += random->gaussian()*sqrt(2.*adaptTempDt)*adaptTempT;
-        dT += adaptTempT;
+        dT = tp;
      }
 
      // Check if dT in [adaptTempTmin,adaptTempTmax]. If not try simpler estimate of mean
      // This helps sampling with poor statistics in the bins surrounding adaptTempBin.
-      if ( dT > 1./adaptTempBetaMin || dT  < 1./adaptTempBetaMax ) {
+      if ( dT >= 1./adaptTempBetaMin || dT  < 1./adaptTempBetaMax ) {
         dT = adaptTempT;
       } else if (adaptTempAutoDt) {
           //update temperature step size counter
@@ -2600,7 +2608,8 @@ Bool Controller::adaptTempUpdate(int step, int minimize)
              << " ENERGYVAR " << adaptTempPotEnergyVar[adaptTempBin];
         if ( simParams->adaptTempMCMove && adaptTempMCTot > 0 ) {
           BigReal acc = adaptTempMCAcc / adaptTempMCTot;
-          BigReal dacc = adaptTempMCDAcc / adaptTempMCTot;
+          BigReal dacc = (adaptTempMCDAcc - adaptTempMCFail/adaptTempMCSizeInc)
+                         / adaptTempMCTot;
           if ( dacc > -0.01 ) dacc = -0.01;
           BigReal newsize = simParams->adaptTempMCSize + (0.5 - acc) / dacc;
           if ( newsize < 0 ) newsize = 0;

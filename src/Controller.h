@@ -413,7 +413,8 @@ protected:
      }
    };
    AdaptTempSepAcc *adaptTempSepAcc;
-   double  adaptTempMCTot, adaptTempMCAcc, adaptTempMCDAcc;
+   const double adaptTempMCSizeInc = 0.0005;
+   double  adaptTempMCTot, adaptTempMCAcc, adaptTempMCDAcc, adaptTempMCFail;
    double  *adaptTempPotEnergyAveNum;
    double  *adaptTempPotEnergyAveDen;
    double  *adaptTempPotEnergyVarNum;
