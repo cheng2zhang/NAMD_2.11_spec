@@ -10,6 +10,7 @@
 
 #include "largefiles.h"  // must be first!
 
+#include <fstream>
 #include <string.h>
 #include <stdlib.h>
 
@@ -1332,6 +1333,63 @@ void Output::scale_vels(Vector *v, int n, Real fact)
 }
 /*      END OF FUNCTION scale_vels      */
 
+static BigReal getdih(Vector& xi, Vector& xj, Vector& xk, Vector& xl, Lattice* lattice)
+{
+  Vector xij = lattice->delta(xi, xj);
+  Vector xkj = lattice->delta(xk, xj);
+  Vector xkl = lattice->delta(xk, xl);
+  BigReal nxkj2 = xkj.length2();
+  BigReal nxkj = sqrt(nxkj2);
+  BigReal tol = nxkj2 * 1e-16;
+
+  Vector m = cross(xij, xkj);
+  BigReal m2 = m.length2();
+  Vector n = cross(xkj, xkl);
+  BigReal n2 = n.length2();
+  BigReal cosphi = 1;
+  if ( m2 > tol && n2 > tol ) {
+    cosphi = m.dot(n) / sqrt(m2 * n2);
+    if ( cosphi > 1 ) cosphi = 1;
+    else if ( cosphi < -1 ) cosphi = -1;
+  }
+  BigReal phi = acos(cosphi);
+  if ( n.dot(xij) < 0 ) phi = -phi;
+  return phi;
+}
+
+// write the quantity computed from the special atoms
+void Output::specAtoms(int step, int numAtoms, Vector* arr, Lattice* lattice,
+    BigReal tp, BigReal ep)
+{
+  SimParameters *simParams = Node::Object()->simParameters;
+  char s[1024];
+  BigReal x;
+  static int once;
+  static std::ofstream fs;
+  if ( !once && simParams->specAtomsFile[0] != '\0' ) {
+    fs.open(simParams->specAtomsFile, std::ios::app);
+    once = 1;
+  }
+  if ( strncasecmp(simParams->specAtomsType, "end", 3) == 0 ) {
+    // Compute the end-to-end distance from the positions
+    Vector del(0, 0, 0), endtoend(0, 0, 0);
+    for ( int k = 0; k < numAtoms - 1; k++ )
+      endtoend += lattice->delta(arr[k+1], arr[k]); 
+    x = endtoend.length();
+  } else if ( strncasecmp(simParams->specAtomsType, "dih", 3) == 0 ) {
+    // Compute the dihedral
+    x = getdih(arr[0], arr[1], arr[2], arr[3], lattice);
+  }
+  if ( fs.is_open() ) { // write to file
+    fs << step << "\t" << x;
+    if ( simParams->adaptTempOn ) fs << "\t" << tp << "\t" << ep;
+    fs << std::endl;
+    if ( step + simParams->specAtomsFreq > simParams->N )
+      fs.close();
+  } else { // print to screen
+    CkPrintf("step %d, %s %g\n", step, simParams->specAtomsType, x);
+  }
+}
 
 #ifdef MEM_OPT_VERSION
 //////Beginning of Functions related with velocity output//////

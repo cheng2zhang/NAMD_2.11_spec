@@ -554,9 +554,10 @@ public:
         BigReal adaptTempWeightExp;            //  Exponent x as in the inverse-temperature density w(beta) ~ beta^(-x), 0: flat-beta, 1: flat-lnT, 2: flat-T distribution
         Bool adaptTempMCMove;                  //  Use Monte Carlo to update the temperature
         BigReal adaptTempMCSize;               //  Size of Monte Carlo temperature moves a faction of the current temperture
-        BigReal adaptTempMCSizeInc;            //  Increment of trials for adjusting the size of MC temperature moves
+        BigReal adaptTempMCSizeInc;            //  Virtual size increment for MC temperature moves
+        BigReal adaptTempMCAutoAR;             //  Target acceptance ratio for automatic adjustment of the size of MC temperature moves
         BigReal adaptTempDt;                   //  Timestep for adaptTemp updates - only affects Temperature random walk
-        int adaptTempDtSteps;                  //  Number of sub-steps for a temperature update step
+        BigReal adaptTempDtAutoAR;             //  Target acceptance ratio for automatic adjustment of the size of Langevin temperature moves
         BigReal adaptTempCgamma;               //  Cgamma variable for adaptive bin averaging Cgamma = 0 is normal Averaging. 1 > Cgamma >= 0
         Bool adaptTempLangevin;                //  Couple to Langevin Thermostat
         Bool adaptTempRescale;                 //  Couple to Vel. Rescaling
@@ -564,6 +565,7 @@ public:
         Bool adaptTempTNHC;                    //  Couple to Nose-Hoover chain thermostat
         char adaptTempInFile[128];             //  Restart information for adaptTemp to read
         Bool adaptTempFixedAve;                //  Fixing the average values from the input restart file
+        Bool adaptTempEmptyData;               //  Emptying data (except the average energy) after reading the input restart file
         char adaptTempRestartFile[128];        //  File to write restart information
         int  adaptTempRestartFreq;             //  Frequency of writing restart output
         Bool adaptTempRestartAppend;           //  Appending instead of overwriting the restart file
@@ -573,7 +575,10 @@ public:
         /* End Adaptive Temperature Sampling */
 
         Bool specAtomsOn;                      //  Turn on calculation on the end-to-end distance
-        int  specAtomsFreq;                    //  Frequency of outputing the end-to-end distance of the special atoms
+        char specAtomsFile[128];               //  Output file for special atoms
+        char specAtomsList[1024];              //  List of special atom types, separated by ':' for atoms of different groups, or by ',' for atoms in the same group
+        char specAtomsType[128];               //  Quantity to be computed from the special atoms, can be 'end-to-end distance' or 'dihedral'
+        int  specAtomsFreq;                    //  Frequency of outputing the quantity of the special atoms
 
 	int reassignFreq;		//  Velocity reassignment frequency
 	BigReal reassignTemp;		//  Temperature to reassign to

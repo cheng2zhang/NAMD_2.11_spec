@@ -138,6 +138,7 @@ protected:
       BigReal drudeBondTemp; // temperature of Drude bonds
       BigReal drudeBondTempAvg;
 
+      BigReal potentialEnergy;
       BigReal kineticEnergy;
       BigReal kineticEnergyHalfstep;
       BigReal kineticEnergyCentered;
@@ -263,7 +264,9 @@ protected:
    void adaptTempDone(int step);
    BigReal adaptTempGetInvW(BigReal tp);
    BigReal adaptTempGetPEAve(int i, BigReal def = 0);
+   BigReal adaptTempGetIntE(BigReal beta, int i, BigReal nbeta, int ni, double& epave);
    BigReal adaptTempMCMove(BigReal tp, BigReal ep);
+   BigReal adaptTempLangevin(BigReal tp, BigReal ep);
    Bool adaptTempUpdate(int step, int minimize = 0);
    void adaptTempWriteRestart(int step);
    int *adaptTempBinMinus;
@@ -296,6 +299,17 @@ protected:
        }
      }
 
+     void empty(void) {
+       for ( int j = 0; j < winSize; j++ ) {
+         sumw[j]  = 0;
+         sumE[j]  = 0;
+         sumE2[j] = 0;
+         ave[j]   = 0;
+         var[j]   = 0;
+         cnt[j]   = 0;
+       }
+     }
+
      // initialize the window
      void init(int minus, int plus) {
        bin0 = minus;
@@ -309,14 +323,7 @@ protected:
        ave   = new double[winSize];
        var   = new double[winSize];
        cnt   = new double[winSize];
-       for ( int j = 0; j < winSize; j++ ) {
-         sumw[j]  = 0;
-         sumE[j]  = 0;
-         sumE2[j] = 0;
-         ave[j]   = 0;
-         var[j]   = 0;
-         cnt[j]   = 0;
-       }
+       empty();
      }
 
      // compute the average and variance of each bin
@@ -413,8 +420,11 @@ protected:
      }
    };
    AdaptTempSepAcc *adaptTempSepAcc;
-   const double adaptTempMCSizeInc = 0.0005;
-   double  adaptTempMCTot, adaptTempMCAcc, adaptTempMCDAcc, adaptTempMCFail;
+   double  adaptTempMCSize;
+   double  adaptTempMCTot, adaptTempMCAcc;
+   double  adaptTempMCDAcc, adaptTempMCFail; // accumulators for adjusting the MC size
+   double  adaptTempLangTot, adaptTempLangAcc;
+   double  adaptTempLangDAcc, adaptTempLangFail; // accumulators for adjusting Dt
    double  *adaptTempPotEnergyAveNum;
    double  *adaptTempPotEnergyAveDen;
    double  *adaptTempPotEnergyVarNum;
@@ -423,8 +433,6 @@ protected:
    long    *adaptTempPotEnergySamples;
    BigReal *adaptTempBetaN;
    BigReal adaptTempT;
-   BigReal adaptTempDTave;
-   BigReal adaptTempDTavenum;
    BigReal adaptTempBetaMin;
    BigReal adaptTempBetaMax;
    int     adaptTempBin;
@@ -432,9 +440,6 @@ protected:
    BigReal adaptTempDBeta;
    BigReal adaptTempCg;
    BigReal adaptTempDt;
-   Bool    adaptTempAutoDt;
-   BigReal adaptTempDtMin;
-   BigReal adaptTempDtMax;
    ofstream_namd adaptTempRestartFile;
   
     // special atoms

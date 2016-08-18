@@ -68,38 +68,29 @@ void CollectionMaster::receiveSpecPositions(CollectVectorMsg *msg)
 {
   specPositions.submitData(msg, numSpec);
   delete msg;
-  
+  // remove queued positions, c->seq is not necessarily msg->seq
   CollectVectorInstance *c;
   while ( ( c = specPositions.removeReady() ) ) { disposeSpecPositions(c); }
 }
 
-void CollectionMaster::enqueueSpecPositions(int seq, Lattice &lattice)
+void CollectionMaster::enqueueSpecPositions(int seq, Lattice &lattice, BigReal tp, BigReal ep)
 {
-  specPositions.enqueue(seq,lattice);
-
+  specPositions.enqueue(seq, lattice);
+  std::vector<BigReal> data;
+  data.push_back(tp);
+  data.push_back(ep);
+  specUserData.add(seq, data);
+  // remove queued positions, c->seq is not necessarily seq
   CollectVectorInstance *c;
   while ( ( c = specPositions.removeReady() ) ) { disposeSpecPositions(c); }
 }
  
 void CollectionMaster::disposeSpecPositions(CollectVectorInstance *c)
 {
-    int seq = c->seq;
-    int size = c->data.size();
-    if ( ! size ) size = c->fdata.size();
-    Vector *data = c->data.begin();
-    FloatVector *fdata = c->fdata.begin();
-    //for ( int k = 0; k < c->data.size(); k++ )
-    //  CkPrintf("CollectionMaster %d: %d, %g, %g, %g\n", seq, k, data[k].x, data[k].y, data[k].z);
-
-    // Compute the end-to-end distance from the positions
-    int numAtoms = c->data.size(), k;
-    Vector del(0, 0, 0), endtoend(0, 0, 0);
-    for ( k = 0; k < numAtoms - 1; k++ ) {
-      endtoend += c->lattice.delta(data[k+1], data[k]); 
-    }
-    BigReal dist = endtoend.length();
-    CkPrintf("step %d, end-to-end distance %g\n", seq, dist);
-    c->free();
+  const std::vector<BigReal>& ud = specUserData.del(c->seq);
+  Node::Object()->output->specAtoms(c->seq, c->data.size(), c->data.begin(),
+      &c->lattice, ud[0], ud[1]);
+  c->free();
 }
  
 void CollectionMaster::receivePositions(CollectVectorMsg *msg)
